@@ -25,3 +25,9 @@ steps:
     tar -czv --owner=root --group=root -f $(Build.ArtifactStagingDirectory)/SIC-Admintools-0.0.$(minor).tgz .
   displayName: 'Packaging tarball'
   continueOnError: true
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'sic-admintools'
+    publishLocation: 'Container'
