@@ -22,6 +22,6 @@ steps:
     chmod 755 $(find . -type d -print)
     chmod 644 $(find . -type f -print)
     popd
-    tar -czv --owner=root --group=root -f $(Build.ArtifactStagingDirectory)/SIC-Admintools-0.0.$(minor).tgz administration
+    tar -czv --owner=root --group=root -f $(Build.ArtifactStagingDirectory)/SIC-Admintools-0.0.$(minor).tgz
   displayName: 'Packaging tarball'
   continueOnError: true
