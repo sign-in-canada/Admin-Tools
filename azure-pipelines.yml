@@ -1,0 +1,27 @@
+# Admin Tools packaging pipeline 
+
+name: $(Build.DefinitionName).$(BuildID).$(Rev:.rr)
+trigger:
+- master
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  major: 1
+  # define b as a counter with the prefix as variable a, and seed as 10.
+  minor: $[counter(variables['major'], 10)]
+
+steps:
+- script: echo Hello, world!
+  displayName: 'Run a one-line script'
+
+- script: |
+    ls -al $(Pipeline.Workspace)
+    echo 'packaging tarball'
+    chmod 755 $(find . -type d -print)
+    chmod 644 $(find . -type f -print)
+    popd
+    tar -czv --owner=root --group=root -f $(Build.ArtifactStagingDirectory)/SIC-Admintools-0.0.$(minor).tgz administration
+  displayName: 'Packaging tarball'
+  continueOnError: true
