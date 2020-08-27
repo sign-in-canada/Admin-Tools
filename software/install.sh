@@ -23,10 +23,23 @@ else
    exit 1
 fi
 
+echo "Stopping Gluu..."
+if [ -f /sbin/gluu-serverd ] ; then
+/sbin/gluu-serverd stop
+fi
+
 if [ ! -f ./oxauth-keys.jks ] ; then
    echo "Backing up the oxAuth keystore"
    cp /opt/gluu-server/etc/certs/oxauth-keys.jks .
 fi
+
+echo "Backing up the Gluu logs..."
+tar czf logs.tgz -C /opt/gluu-server \
+                 opt/gluu/jetty/oxauth/logs \
+                 opt/gluu/jetty/identity/logs \
+                 opt/shibboleth-idp/logs \
+                 opt/gluu/node/passport/server/logs \
+                 var/log/httpd
 
 echo "Uninstalling Gluu..."
 yum remove -y gluu-server
@@ -73,6 +86,9 @@ if [ -f ./oxauth-keys.jks ] ; then
    echo "Restoring the oxAuth keystore."
    cat ./oxauth-keys.jks > /opt/gluu-server/etc/certs/oxauth-keys.jks
 fi
+
+echo "Restoring the logs..."
+tar xzf logs.tgz -C /opt/gluu-server
 
 echo "Restarting..."
 /sbin/gluu-serverd restart
