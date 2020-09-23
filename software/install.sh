@@ -33,13 +33,15 @@ if [ ! -f ./oxauth-keys.jks ] ; then
    cp /opt/gluu-server/etc/certs/oxauth-keys.jks .
 fi
 
-echo "Backing up the Gluu logs..."
-tar czf logs.tgz -C /opt/gluu-server \
-                 opt/gluu/jetty/oxauth/logs \
-                 opt/gluu/jetty/identity/logs \
-                 opt/shibboleth-idp/logs \
-                 opt/gluu/node/passport/server/logs \
-                 var/log/httpd
+if [ -f /opt/gluu-server/opt/gluu/jetty/oxauth/logs/oxauth.log ] ; then
+   echo "Backing up the Gluu logs..."
+   tar czf logs.tgz -C /opt/gluu-server \
+                       opt/gluu/jetty/oxauth/logs \
+                       opt/gluu/jetty/identity/logs \
+                       opt/shibboleth-idp/logs \
+                       opt/gluu/node/passport/server/logs \
+                       var/log/httpd
+fi
 
 echo "Uninstalling Gluu..."
 yum remove -y gluu-server
@@ -56,6 +58,11 @@ fi
 
 echo "Reinstalling Gluu..."
 yum localinstall -y ./gluu-server-4.1.0-*.x86_64.rpm
+
+if [ ! -f /opt/gluu-server/install/community-edition-setup/setup.py ] ; then
+   echo "Gluu setup install failed. Aborting!"
+   exit
+fi
 
 echo "Adding Sign In Canada customizations..."
 tar xvzf ${1}.tgz -C /opt/gluu-server/
