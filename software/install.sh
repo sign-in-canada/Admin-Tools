@@ -94,10 +94,15 @@ if [ -f ./oxauth-keys.jks ] ; then
    cat ./oxauth-keys.jks > /opt/gluu-server/etc/certs/oxauth-keys.jks
 fi
 
+if [ -d ./local ] ; then
+   echo "Applying local configuration..."
+   cp -R ./local/* /opt/gluu-server
+fi
+
 echo "Restoring the logs..."
 tar xzf logs.tgz -C /opt/gluu-server
 
-echo "Restarting..."
+echo "Restarting Gluu..."
 /sbin/gluu-serverd restart
 
 echo "Cleaning up..."
