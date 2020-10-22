@@ -48,7 +48,7 @@ yum remove -y gluu-server
 rm -rf /opt/gluu-server*
 
 echo "Checking integrity of the Gluu RPM..."
-rpm -K ./gluu-server-4.1.0-*.x86_64.rpm
+rpm -K ./gluu-server-4.2.1-*.x86_64.rpm
 if [ $? -eq 0 ] ; then
    echo "Passed."
 else
@@ -57,7 +57,7 @@ else
 fi
 
 echo "Reinstalling Gluu..."
-yum localinstall -y ./gluu-server-4.1.0-*.x86_64.rpm
+yum localinstall -y ./gluu-server-4.2.1-*.x86_64.rpm
 
 if [ ! -f /opt/gluu-server/install/community-edition-setup/setup.py ] ; then
    echo "Gluu setup install failed. Aborting!"
