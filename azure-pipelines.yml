@@ -19,6 +19,7 @@ steps:
     echo 'packaging tarball'
     chmod 755 $(find . -type d -print)
     chmod 644 $(find . -type f -print)
+    chmod 755 $(find . -type f -name '*.sh' -print)
     popd
     tar -czv --owner=root --group=root -f $(Build.ArtifactStagingDirectory)/SIC-Admintools-0.0.$(minor).tgz README.md azure data security software
   displayName: 'Packaging tarball'
