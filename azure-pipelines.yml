@@ -13,8 +13,6 @@ variables:
   minor: $[counter(variables['major'], 10)]
 
 steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
 
 - script: |
     ls -al $(Pipeline.Workspace)
@@ -22,7 +20,7 @@ steps:
     chmod 755 $(find . -type d -print)
     chmod 644 $(find . -type f -print)
     popd
-    tar -czv --owner=root --group=root -f $(Build.ArtifactStagingDirectory)/SIC-Admintools-0.0.$(minor).tgz .
+    tar -czv --owner=root --group=root -f $(Build.ArtifactStagingDirectory)/SIC-Admintools-0.0.$(minor).tgz README.md azure data security software
   displayName: 'Packaging tarball'
   continueOnError: true
 
