@@ -81,6 +81,14 @@ if [ -f ./passport-central-config.json ] ; then
    cat ./passport-central-config.json > /opt/gluu-server/install/community-edition-setup/templates/passport-central-config.json
 fi
 
+echo "copying certs to gluu container"
+KV_DIR=/opt/gluu-server/install/keyvault/certs
+mkdir -p $KV_DIR
+hname=$(hostname)
+dirname="${hname}.canadacentral.cloudapp.azure.com"
+cp /.acme.sh/$dirname/* $KV_DIR
+cat $dirname > $KV_DIR/hostname_
+
 echo "Configuring Gluu..."
 cp setup.properties /opt/gluu-server/install/community-edition-setup/setup.properties
 ssh  -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
