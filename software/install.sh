@@ -82,12 +82,13 @@ if [ -f ./passport-central-config.json ] ; then
 fi
 
 echo "copying certs to gluu container"
+# if you are chaing this directory make sure you change it in the AC keyvault.sh certname_prefix as well
 KV_DIR=/opt/gluu-server/install/keyvault/certs
 mkdir -p $KV_DIR
 hname=$(hostname)
 dirname="${hname}.canadacentral.cloudapp.azure.com"
 cp /.acme.sh/$dirname/* $KV_DIR
-cat $dirname > $KV_DIR/hostname_
+echo $dirname > $KV_DIR/hostname_
 
 echo "Configuring Gluu..."
 cp setup.properties /opt/gluu-server/install/community-edition-setup/setup.properties
