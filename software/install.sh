@@ -86,9 +86,9 @@ echo "copying certs to gluu container"
 KV_DIR=/opt/gluu-server/install/keyvault/certs
 mkdir -p $KV_DIR
 hname=$(hostname)
-dirname="${hname}.canadacentral.cloudapp.azure.com"
-cp /.acme.sh/$dirname/* $KV_DIR
-echo $dirname > $KV_DIR/hostname_
+#dirname="${hname}.canadacentral.cloudapp.azure.com"
+cp /.acme.sh/$hname/* $KV_DIR
+echo $hname > $KV_DIR/hostname_
 
 echo "Configuring Gluu..."
 cp setup.properties /opt/gluu-server/install/community-edition-setup/setup.properties
