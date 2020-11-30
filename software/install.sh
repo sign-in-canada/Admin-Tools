@@ -2,7 +2,7 @@
 
 if [ "$#" -ne 1 ]; then
     echo "Please specify the package to be installed. Eg:"
-    echo "./install.sh SIC-AP-X.X.X
+    echo "./install.sh SIC-AP-X.X.X"
     exit
 fi
 
