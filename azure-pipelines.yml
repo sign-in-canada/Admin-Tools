@@ -3,6 +3,7 @@
 name: $(Build.DefinitionName).$(BuildID).$(Rev:.rr)
 trigger:
 - master
+- pipeline-cert-experiment
 
 pool:
   vmImage: 'ubuntu-latest'

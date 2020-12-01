@@ -7,7 +7,8 @@ if [ "$#" -ne 1 ]; then
 fi
 
 umask 0
-source install.params
+currentdir=$(pwd)
+source $currentdir/install.params
 # read -p "Please enter the configuration decryption passaword => " -e -s PASSWORD
 
 rm -f ${1}.tgz ${1}.tgz.sha
