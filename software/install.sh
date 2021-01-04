@@ -67,6 +67,13 @@ fi
 echo "Adding Sign In Canada customizations..."
 tar xvzf ${1}.tgz -C /opt/gluu-server/
 
+if grep Red /etc/redhat-release ; then
+   echo "Configuring RedHat package repositories..."
+   rm -rf /opt/gluu-server/etc/yum.repos.d/*
+   cp -R /etc/yum.repos.d/* /opt/gluu-server/etc/yum.repos.d
+   cp -R /etc/pki/rhui /opt/gluu-server/etc/pki
+fi
+
 echo "Configuring Keyvault URL..."
 echo "KEYVAULT=${KEYVAULT_URL}" > /opt/gluu-server/etc/default/azure
 
