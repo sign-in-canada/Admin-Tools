@@ -70,7 +70,9 @@ tar xvzf ${1}.tgz -C /opt/gluu-server/
 if grep Red /etc/redhat-release ; then
    echo "Configuring RedHat package repositories..."
    rm -rf /opt/gluu-server/etc/yum.repos.d/*
-   cp -R /etc/yum.repos.d/* /opt/gluu-server/etc/yum.repos.d
+   cp -R /etc/yum.repos.d/epel-custom.repo /opt/gluu-server/etc/yum.repos.d
+   cp -R /etc/yum.repos.d/redhat.repo /opt/gluu-server/etc/yum.repos.d
+   cp -R /etc/yum.repos.d/rh-cloud.repo /opt/gluu-server/etc/yum.repos.d
    cp -R /etc/pki/rhui /opt/gluu-server/etc/pki
 fi
 
