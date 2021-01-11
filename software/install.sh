@@ -6,12 +6,53 @@ if [ "$#" -ne 1 ]; then
     exit
 fi
 
-umask 0
-source install.params
-read -p "Please enter the configuration decryption passaword => " -e -s PASSWORD
+PRODUCT=$(echo ${1} | cut -c5-6)
 
+umask 0
+
+# Check for local parameters file
+if [ -f install.params ] ; then
+   source install.params
+fi
+
+# Obtain keyvault access token
+
+TOKEN=$(curl -s 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net' -H Metadata:true | jq -r '.access_token')
+
+fetchSecret () {
+   curl -s -H "Authorization: Bearer ${TOKEN}" ${KEYVAULT_URL}/secrets/${1}?api-version=7.1 | jq -r '.value'
+}
+
+# Verify keyvault connectivity before going any further
+if fetchSecret 'x' > /dev/null 2>&1 ; then
+   echo "Connected to Keyvault ${KEYVAULT_URL}"
+else
+   echo "Connection to Keyvault ${KEYVAULT_URL} failed. Aborting."
+   exit 1
+fi
+
+# Get the admin password from Keyvault
+GLUU_PASSWORD=$(fetchSecret ${PRODUCT}GluuPW)
+if [ -z "$GLUU_PASSWORD" ] ; then
+   read -p "Please enter the configuration decryption passaword => " -e -s GLUU_PASSWORD
+fi
+export GLUU_PASSWORD
+
+# Get the Shibboleth password from Keyvault
+SHIB_PASSWORD=$(fetchSecret ${PRODUCT}ShibPW)
+
+# Get the couchbase cluster host name(s)
+if [ -z "$CB_HOSTS" ] ; then
+   read -p "Please enter the couchbase cluster hostname or IP => " -e -s CB_HOSTS
+fi
+
+# Get the encoding salt from Keyvault
+SALT=$(fetchSecret ${PRODUCT}salt)
+
+# Remove any old downloads
 rm -f ${1}.tgz ${1}.tgz.sha
 
+# Download the product tarball 
 echo Downloading ${1}...
 wget ${STAGING_URL}/${1}.tgz
 wget ${STAGING_URL}/${1}.tgz.sha
@@ -28,7 +69,48 @@ if [ -f /sbin/gluu-serverd ] ; then
 /sbin/gluu-serverd stop
 fi
 
-if [ ! -f ./oxauth-keys.jks ] ; then
+if [ -f /opt/gluu-server/install/community-edition-setup/setup.properties.last.enc ] ; then
+   echo "Update detected. Backing up setup.properties..."
+   cp /opt/gluu-server/install/community-edition-setup/setup.properties.last.enc .
+
+   # Check to see if loadData is turned off
+   if openssl enc -d -aes-256-cbc -pass env:GLUU_PASSWORD -in setup.properties.last.enc | grep -q "loadData=True" ; then
+      echo "Disabling database initialization"
+      openssl enc -d -aes-256-cbc -pass env:GLUU_PASSWORD -in setup.properties.last.enc |
+         sed -e "/^loadData=True/ s/.*/loadData=False/g" |
+         openssl enc -aes-256-cbc -pass env:GLUU_PASSWORD -out setup.properties.last.enc
+   fi
+else
+   echo "New install. Creating setup.properties..."
+   {
+   cat <<-EOF
+		#$(date)
+		hostname=$(hostname)
+		ip=$(curl -s -H Metadata:true "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2017-08-01&format=text")
+		persistence_type=couchbase
+		cb_install=2
+		wrends_install=0
+		couchbase_hostname=${CB_HOSTS}
+		couchebaseClusterAdmin=gluu
+		cb_password=${GLUU_PASSWORD}
+		isCouchbaseUserAdmin=True
+		mappingLocations={"default"\: "couchbase", "user"\: "couchbase", "site"\: "couchbase", "cache"\: "couchbase", "token"\: "couchbase", "session"\: "couchbase"}
+		installPassport=True
+		installSaml=True
+		orgName=TBS-SCT
+		city=Ottawa
+		state=ON
+		countryCode=CA
+		admin_email=signin-authenticanada@tbs-sct.gc.ca
+		oxtrust_admin_password=${GLUU_PASSWORD}
+		$([ -n "${SALT}" ] && echo "encode_salt=${SALT}")
+		$([ -n "${SHIB_PASSWORD}" ] && echo "couchbaseShibUserPassword=${SHIB_PASSWORD}")
+	EOF
+   } |
+   openssl enc -aes-256-cbc -pass env:GLUU_PASSWORD -out setup.properties.last.enc
+fi
+
+if [ -f /opt/gluu-server/etc/certs/oxauth-keys.jks ] ; then
    echo "Backing up the oxAuth keystore"
    cp /opt/gluu-server/etc/certs/oxauth-keys.jks .
 fi
@@ -77,7 +159,7 @@ fi
 echo "Configuring Keyvault URL..."
 echo "KEYVAULT=${KEYVAULT_URL}" > /opt/gluu-server/etc/default/azure
 
-if [ ! -z "$METADATA_URL" ] ; then
+if [ -n "$METADATA_URL" ] ; then
    echo "Configuring SAML metadata URL..."
    sed -i "s|\[URL\]|${METADATA_URL}|g" \
       /opt/gluu-server/opt/dist/signincanada/shibboleth-idp/conf/metadata-providers.xml
@@ -93,7 +175,7 @@ cp setup.properties.last.enc /opt/gluu-server/install/community-edition-setup/se
 ssh  -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
                 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
                 -o PubkeyAuthentication=yes root@localhost \
-   "/install/community-edition-setup/setup.py -n -f /install/community-edition-setup/setup.properties.enc -properties-password '$PASSWORD' --import-ldif=/opt/dist/signincanada/ldif ; \
+   "/install/community-edition-setup/setup.py -cnf /install/community-edition-setup/setup.properties.enc -properties-password '$GLUU_PASSWORD' --import-ldif=/opt/dist/signincanada/ldif ; \
     /opt/dist/signincanada/postinstall.sh"
 
 if [ -f ./oxauth-keys.jks ] ; then
