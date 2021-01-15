@@ -23,3 +23,5 @@ export CB_REST_PASSWORD=$2
 curl -X POST -u ${1}:${2} \
   http://localhost:8091/settings/security \
   -d "uiSessionTimeout=600"
+
+  rm -rf /opt/couchbase/lib/cbas/runtime
