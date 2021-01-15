@@ -190,8 +190,10 @@ if [ -d ./local ] ; then
    cp -R ./local/* /opt/gluu-server
 fi
 
-echo "Restoring the logs..."
-tar xzf logs.tgz -C /opt/gluu-server
+if [ -f logs.tgz ] ; then
+   echo "Restoring the logs..."
+   tar xzf logs.tgz -C /opt/gluu-server
+fi
 
 echo "Restarting Gluu..."
 /sbin/gluu-serverd restart
