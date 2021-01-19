@@ -21,12 +21,10 @@ export CB_REST_PASSWORD=$2
   --can-abort-rebalance 1
 
 /opt/couchbase/bin/couchbase-cli  setting-audit -c localhost:8091 \
-  --audit-enabled 1
+  --set --audit-enabled 1
 
 curl -X POST -u ${1}:${2} \
   http://localhost:8091/settings/security \
   -d "uiSessionTimeout=600"
 
-
-
-  rm -rf /opt/couchbase/lib/cbas/runtime
+rm -rf /opt/couchbase/lib/cbas/runtime
