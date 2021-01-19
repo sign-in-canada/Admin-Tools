@@ -31,8 +31,13 @@ else
    exit 1
 fi
 
+# Get the encoding salt from Keyvault
+SALT=$(fetchSecret ${PRODUCT}salt)
+
 # Get the admin password from Keyvault
-GLUU_PASSWORD=$(fetchSecret ${PRODUCT}GluuPW)
+key=$(echo -n $SALT | hexdump -ve '1/1 "%.2x"')
+GLUU_PASSWORD=$(fetchSecret ${PRODUCT}GluuPW | openssl enc -d -des-ede3 -K ${key} -nosalt -a)
+
 if [ -z "$GLUU_PASSWORD" ] ; then
    read -p "Please enter the configuration decryption passaword => " -e -s GLUU_PASSWORD
 fi
@@ -45,9 +50,6 @@ SHIB_PASSWORD=$(fetchSecret ${PRODUCT}ShibPW)
 if [ -z "$CB_HOSTS" ] ; then
    read -p "Please enter the couchbase cluster hostname or IP => " -e -s CB_HOSTS
 fi
-
-# Get the encoding salt from Keyvault
-SALT=$(fetchSecret ${PRODUCT}salt)
 
 # Remove any old downloads
 rm -f ${1}.tgz ${1}.tgz.sha
