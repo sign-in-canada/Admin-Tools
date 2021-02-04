@@ -12,7 +12,7 @@ umask 0
 
 # Check for local parameters file
 if [ -f install.params ] ; then
-   source install.params
+   source ./install.params
 fi
 
 # Obtain keyvault access token
@@ -45,11 +45,6 @@ export GLUU_PASSWORD
 
 # Get the Shibboleth password from Keyvault
 SHIB_PASSWORD=$(fetchSecret ${PRODUCT}ShibPW)
-
-# Get the couchbase cluster host name(s)
-if [ -z "$CB_HOSTS" ] ; then
-   read -p "Please enter the couchbase cluster hostname or IP => " -e -s CB_HOSTS
-fi
 
 # Remove any old downloads
 rm -f ${1}.tgz ${1}.tgz.sha
@@ -84,6 +79,10 @@ if [ -f /opt/gluu-server/install/community-edition-setup/setup.properties.last.e
    fi
 else
    echo "New install. Creating setup.properties..."
+   # Get the couchbase cluster host name(s)
+   if [ -z "$CB_HOSTS" ] ; then
+      read -p "Please enter the couchbase cluster hostname or IP => " -e -s CB_HOSTS
+   fi
    {
    cat <<-EOF
 		#$(date)
