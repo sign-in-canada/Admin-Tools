@@ -1,0 +1,3 @@
+UPDATE `gluu_user` p
+   SET `oxAuthUserId` = SUBSTR(REGEXP_MATCHES(p.dn, "inum=[^,]+")[0], 5)
+   WHERE `objectClass`="pairwiseIdentifier"
