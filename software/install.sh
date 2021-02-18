@@ -134,7 +134,7 @@ yum remove -y gluu-server
 rm -rf /opt/gluu-server*
 
 echo "Checking integrity of the Gluu RPM..."
-rpm -K ./gluu-server-4.2.2-*.x86_64.rpm
+rpm -K ./gluu-server-4.2.3-*.x86_64.rpm
 if [ $? -eq 0 ] ; then
    echo "Passed."
 else
