@@ -83,10 +83,13 @@ else
    if [ -z "$CB_HOSTS" ] ; then
       read -p "Please enter the couchbase cluster hostname or IP => " -e -s CB_HOSTS
    fi
+   if [ -z "$HOSTNAME" ] ; then
+      HOSTNAME=$(hostname)
+   fi
    {
    cat <<-EOF
 		#$(date)
-		hostname=$(hostname)
+		hostname=$HOSTNAME
 		ip=$(curl -s -H Metadata:true "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2017-08-01&format=text")
 		persistence_type=couchbase
 		cb_install=2
@@ -140,7 +143,7 @@ else
 fi
 
 echo "Reinstalling Gluu..."
-yum localinstall -y ./gluu-server-4.2.2-*.x86_64.rpm
+yum localinstall -y ./gluu-server-4.2.3-*.x86_64.rpm
 
 if [ ! -f /opt/gluu-server/install/community-edition-setup/setup.py ] ; then
    echo "Gluu setup install failed. Aborting!"
