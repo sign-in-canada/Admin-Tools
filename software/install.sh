@@ -101,6 +101,7 @@ else
 		mappingLocations={"default"\: "couchbase", "user"\: "couchbase", "site"\: "couchbase", "cache"\: "couchbase", "token"\: "couchbase", "session"\: "couchbase"}
 		installPassport=True
 		installSaml=True
+      oxauth_legacyIdTokenClaims=true
 		orgName=TBS-SCT
 		city=Ottawa
 		state=ON
