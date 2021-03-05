@@ -196,8 +196,21 @@ if [ -f logs.tgz ] ; then
    tar xzf logs.tgz -C /opt/gluu-server
 fi
 
-echo "Restarting Gluu..."
+echo "Restarting Gluu container ..."
 /sbin/gluu-serverd restart
+
+echo "sleeping for 120 seconds"
+sleep 120
+
+echo "restarting gluu services from within Container ..."
+ssh  -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
+                -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+                -o PubkeyAuthentication=yes root@localhost \
+      "systemctl stop identity.service ; \
+      systemctl start identity.service ; \
+      systemctl restart oxauth.service ; \
+      systemctl restart httpd.service ; \
+      systemctl restart idp.service"
 
 echo "Cleaning up..."
 rm -f ${1}.tgz ${1}.tgz.sha
