@@ -18,5 +18,5 @@ key=$(echo -n $salt | hexdump -ve '1/1 "%.2x"')
 password_enc=$(fetchSecret ${module}gluuPW)
 password=$(echo ${password_enc} | openssl enc -d -des-ede3 -K ${key} -nosalt -a)
 
-/opt/couchbase/bin/cbq -u $user -p $password -s "update gluu set META().expiration = 3600 where objectClass = 'oxUmaResourcePermission'"
-/opt/couchbase/bin/cbq -u $user -p $password -s "update gluu_token set META().expiration = 3600 where objectClass = 'oxAuthUmaRPT'"
+/opt/couchbase/bin/cbq -u $user -p $password -s "update gluu set META().expiration = 3600 where objectClass = 'oxUmaResourcePermission' and META().expiration = 0"
+/opt/couchbase/bin/cbq -u $user -p $password -s "update gluu_token set META().expiration = 3600 where objectClass = 'oxAuthUmaRPT' and META().expiration = 0"
