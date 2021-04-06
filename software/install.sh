@@ -1,81 +1,116 @@
 #/bin/bash
 
-if [ "$#" -ne 1 ]; then
-    echo "Please specify the package to be installed. Eg:"
-    echo "./install.sh SIC-AP-X.X.X"
-    exit
-fi
-
-PRODUCT=$(echo ${1} | cut -c5-6)
-
+cd /opt/staging
 umask 0
+set -o pipefail
 
 # Check for local parameters file
 if [ -f install.params ] ; then
    source ./install.params
 fi
 
-# Obtain keyvault access token
+if [ "$#" -eq 1 ]; then
+   PACKAGE=${1}
+elif [ -z "${PACKAGE}" ]; then
+   echo "Please specify the package to be installed. Eg:"
+   echo "./install.sh SIC-AP-X.X.X"
+   exit
+fi
 
-TOKEN=$(curl -s 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net' -H Metadata:true | jq -r '.access_token')
+product=$(echo ${PACKAGE} | cut -c5-6)
+
+# Obtain the internal IP address
+ip_addr=$(curl -s -H Metadata:true "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2017-08-01&format=text")
+if [ $? -ne 0 ] ; then
+   echo "Failed to obtain IP address from the metadata service. Aborting!"
+   exit 1
+fi
+
+# Obtain keyvault access token
+token_json=$(curl -s 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net' -H Metadata:true)
+if [ $? -ne 0 ] ; then
+   echo "Failed to obtain an acces token from the metadata service. Aborting!"
+   exit 1
+else
+   access_token=$(echo -n ${token_json} | jq -r '.access_token')
+fi
 
 fetchSecret () {
-   curl -s -H "Authorization: Bearer ${TOKEN}" ${KEYVAULT_URL}/secrets/${1}?api-version=7.1 | jq -r '.value'
+   json=$(curl -s -H "Authorization: Bearer ${access_token}" "${KEYVAULT_URL}/secrets/${1}?api-version=7.1")
+   if [ $? -ne 0 ] ; then # Error
+      return 1
+   else
+      echo -n ${json} | jq -r '.value'
+   fi
 }
 
-# Verify keyvault connectivity before going any further
-if fetchSecret 'x' > /dev/null 2>&1 ; then
-   echo "Connected to Keyvault ${KEYVAULT_URL}"
-else
-   echo "Connection to Keyvault ${KEYVAULT_URL} failed. Aborting."
+# Get the encoding salt from Keyvault
+salt=$(fetchSecret ${product}salt)
+if [ $? -ne 0 ] || [ ${#salt} -ne 24 ] ; then
+   echo $salt
+   echo "Failed to get the encoding salt from Key Vault. Aborting!"
    exit 1
 fi
-
-# Get the encoding salt from Keyvault
-SALT=$(fetchSecret ${PRODUCT}salt)
 
 # Get the admin password from Keyvault
-key=$(echo -n $SALT | hexdump -ve '1/1 "%.2x"')
-GLUU_PASSWORD=$(fetchSecret ${PRODUCT}GluuPW | openssl enc -d -des-ede3 -K ${key} -nosalt -a)
-
-if [ -z "$GLUU_PASSWORD" ] ; then
-   read -p "Please enter the configuration decryption passaword => " -e -s GLUU_PASSWORD
-fi
-export GLUU_PASSWORD
-
-# Get the Shibboleth password from Keyvault
-SHIB_PASSWORD=$(fetchSecret ${PRODUCT}ShibPW)
-
-# Remove any old downloads
-rm -f ${1}.tgz ${1}.tgz.sha
-
-# Download the product tarball 
-echo Downloading ${1}...
-wget ${STAGING_URL}/${1}.tgz
-wget ${STAGING_URL}/${1}.tgz.sha
-echo -n "Checking download integrity..."
-if [ "$(cut -d ' ' -f 2 ${1}.tgz.sha)" = "$(openssl sha256 ${1}.tgz | cut -d ' ' -f 2)" ] ; then
-   echo "Passed."
-else
-   echo "Failed!. Aborting installation."
+pw_encoded=$(fetchSecret ${product}GluuPW)
+if [ $? -ne 0 ] || [ -z "${pw_encoded}" ] ; then
+   echo "Failed to get the master password from Key Vault. Aborting!"
    exit 1
 fi
 
-echo "Stopping Gluu..."
-if [ -f /sbin/gluu-serverd ] ; then
-/sbin/gluu-serverd stop
+#Decode the password
+key=$(echo -n $salt | hexdump -ve '1/1 "%.2x"')
+GLUU_PASSWORD=$(echo $pw_encoded | openssl enc -d -des-ede3 -K ${key} -nosalt -a)
+if [ $? -ne 0 ] || [ -z "${GLUU_PASSWORD}" ] ; then
+   echo "Failed to decode the master password. Aborting!"
+   exit 1
+else
+   export GLUU_PASSWORD
+fi
+
+# If the SAML METADATA_URL is configured, then we will install Shibboleth
+if [ -n "${METADATA_URL}" ] ; then
+   # Get the Shibboleth password from Keyvault
+   shib_password=$(fetchSecret ${product}ShibPW)
+   if [ $? -ne 0 ] || [ -z "${shib_password}" ] ; then
+      echo "Failed to fetch the shibboleth password. Aborting!"
+      exit 1
+   fi
 fi
 
 if [ -f /opt/gluu-server/install/community-edition-setup/setup.properties.last.enc ] ; then
-   echo "Update detected. Backing up setup.properties..."
+   echo "Existing container detected. Backing up setup.properties..."
    cp /opt/gluu-server/install/community-edition-setup/setup.properties.last.enc .
+fi
+
+if [ -f /opt/gluu-server/etc/certs/oxauth-keys.jks ] ; then
+   echo "Backing up the oxAuth and Passport keystores..."
+   if [ ! -d backups ] ; then
+      mkdir backups
+   fi
+   cp /opt/gluu-server/etc/certs/oxauth-keys.jks backups
+   cp /opt/gluu-server/etc/certs/passport-rs.jks backups
+   cp /opt/gluu-server/etc/certs/passport-rp.jks backups
+   cp /opt/gluu-server/etc/certs/passport-rp.pem backups
+   cp /opt/gluu-server/etc/gluu/conf/passport-config.json backups
+fi
+
+if [ -f setup.properties.last.enc ] ; then
+   echo "Found setup.properties.last.enc. An update will be performed."
 
    # Check to see if loadData is turned off
    if openssl enc -d -aes-256-cbc -pass env:GLUU_PASSWORD -in setup.properties.last.enc | grep -q "loadData=True" ; then
       echo "Disabling database initialization"
       openssl enc -d -aes-256-cbc -pass env:GLUU_PASSWORD -in setup.properties.last.enc |
          sed -e "/^loadData=True/ s/.*/loadData=False/g" |
-         openssl enc -aes-256-cbc -pass env:GLUU_PASSWORD -out setup.properties.last.enc
+         openssl enc -aes-256-cbc -pass env:GLUU_PASSWORD -out setup.properties.last.new
+      if [ $? -ne 0 ] ; then
+         echo "Could not disable database initialization. Aborting!"
+         exit 1
+      else
+         mv --backup setup.properties.last.new setup.properties.last.enc
+      fi
    fi
 else
    echo "New install. Creating setup.properties..."
@@ -90,7 +125,8 @@ else
    cat <<-EOF
 		#$(date)
 		hostname=$HOSTNAME
-		ip=$(curl -s -H Metadata:true "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2017-08-01&format=text")
+		encode_salt=${salt}
+      ip=${ip_addr}
 		persistence_type=couchbase
 		cb_install=2
 		wrends_install=0
@@ -100,39 +136,63 @@ else
 		isCouchbaseUserAdmin=True
 		mappingLocations={"default"\: "couchbase", "user"\: "couchbase", "site"\: "couchbase", "cache"\: "couchbase", "token"\: "couchbase", "session"\: "couchbase"}
 		installPassport=True
-		installSaml=True
-      oxauth_legacyIdTokenClaims=true
+		oxauth_legacyIdTokenClaims=true
 		orgName=TBS-SCT
 		city=Ottawa
 		state=ON
 		countryCode=CA
 		admin_email=signin-authenticanada@tbs-sct.gc.ca
 		oxtrust_admin_password=${GLUU_PASSWORD}
-		$([ -n "${SALT}" ] && echo "encode_salt=${SALT}")
-		$([ -n "${SHIB_PASSWORD}" ] && echo "couchbaseShibUserPassword=${SHIB_PASSWORD}")
+		$([ -n "${shib_password}" ] && echo "installSaml=True")
+		$([ -n "${shib_password}" ] && echo "couchbaseShibUserPassword=${SHIB_PASSWORD}")
 	EOF
    } |
    openssl enc -aes-256-cbc -pass env:GLUU_PASSWORD -out setup.properties.last.enc
 fi
 
-if [ -f /opt/gluu-server/etc/certs/oxauth-keys.jks ] ; then
-   echo "Backing up the oxAuth keystore"
-   cp /opt/gluu-server/etc/certs/oxauth-keys.jks .
+# Download the product tarball 
+echo Downloading ${PACKAGE}...
+wget -nv ${STAGING_URL}/${PACKAGE}.tgz -O ${PACKAGE}.tgz
+if [ $? -ne 0 ] ; then
+   echo "Package download failed. Aborting!"
+   exit 1
 fi
 
-if [ -f /opt/gluu-server/opt/gluu/jetty/oxauth/logs/oxauth.log ] ; then
-   echo "Backing up the Gluu logs..."
-   tar czf logs.tgz -C /opt/gluu-server \
-                       opt/gluu/jetty/oxauth/logs \
-                       opt/gluu/jetty/identity/logs \
-                       opt/shibboleth-idp/logs \
-                       opt/gluu/node/passport/server/logs \
-                       var/log/httpd
+wget -nv ${STAGING_URL}/${PACKAGE}.tgz.sha -O ${PACKAGE}.tgz.sha
+if [ $? -ne 0 ] ; then
+   echo "Package hash download failed. Aborting!"
+   exit 1
 fi
 
-echo "Uninstalling Gluu..."
-yum remove -y gluu-server
-rm -rf /opt/gluu-server*
+echo -n "Checking download integrity..."
+if [ "$(cut -d ' ' -f 2 ${PACKAGE}.tgz.sha)" = "$(openssl sha256 ${PACKAGE}.tgz | cut -d ' ' -f 2)" ] ; then
+   echo "Passed."
+else
+   echo "Failed!. Aborting installation."
+   exit 1
+fi
+
+# Check for the Gluu package. Attempt to download if necessary
+
+if [ ! -f /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU ] ; then
+   echo "Attepmting to Download Gluu GPG Key"
+   wget -nv https://repo.gluu.org/rhel/RPM-GPG-KEY-GLUU -O /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU
+   if [ $? -ne 0 ] ; then
+      echo "Gluu GPG Key Download Failed. Aborting!"
+      exit 1
+   fi
+fi
+echo "Importing the Gluu GPG Key"
+rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU
+
+if [ ! -f ./gluu-server-4.2.3-*.x86_64.rpm ] ; then
+   echo "Downloading Gluu Server"
+   if grep Red /etc/redhat-release ; then
+      wget -nv https://repo.gluu.org/rhel/7/gluu-server-4.2.3-rhel7.x86_64.rpm
+   else
+      wget -nv https://repo.gluu.org/centos/7/gluu-server-4.2.3-centos7.x86_64.rpm
+   fi
+fi
 
 echo "Checking integrity of the Gluu RPM..."
 rpm -K ./gluu-server-4.2.3-*.x86_64.rpm
@@ -140,19 +200,27 @@ if [ $? -eq 0 ] ; then
    echo "Passed."
 else
    echo "Failed. Aborting!"
-   exit
+   exit 1
 fi
+
+echo "Uninstalling Gluu..."
+yum remove -y gluu-server > /dev/null 2>&1
+rm -rf /opt/gluu-server*
 
 echo "Reinstalling Gluu..."
 yum localinstall -y ./gluu-server-4.2.3-*.x86_64.rpm
 
-if [ ! -f /opt/gluu-server/install/community-edition-setup/setup.py ] ; then
-   echo "Gluu setup install failed. Aborting!"
-   exit
-fi
+while [ ! -f /opt/gluu-server/install/community-edition-setup/setup.py ] ; do
+   echo "Gluu Setup was not extracted. Trying again..."
+   # RPM is supposed to do this but sometimes doesn't. I think becasue the containter is not ready yet.
+   sleep 5
+   ssh -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
+                  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+                  -o PubkeyAuthentication=yes root@localhost '/opt/gluu/bin/install.py'  
+done
 
 echo "Adding Sign In Canada customizations..."
-tar xvzf ${1}.tgz -C /opt/gluu-server/
+tar xvzf ${PACKAGE}.tgz -C /opt/gluu-server/
 
 if grep Red /etc/redhat-release ; then
    echo "Configuring RedHat package repositories..."
@@ -166,28 +234,34 @@ fi
 echo "Configuring Keyvault URL..."
 echo "KEYVAULT=${KEYVAULT_URL}" > /opt/gluu-server/etc/default/azure
 
-if [ -n "$METADATA_URL" ] ; then
+if [ -n "${METADATA_URL}" ] ; then
    echo "Configuring SAML metadata URL..."
    sed -i "s|\[URL\]|${METADATA_URL}|g" \
       /opt/gluu-server/opt/dist/signincanada/shibboleth-idp/conf/metadata-providers.xml
 fi
 
-if [ -f ./passport-central-config.json ] ; then
-   echo "Restoring CSP and IDP configurations"
-   cat ./passport-central-config.json > /opt/gluu-server/install/community-edition-setup/templates/passport-central-config.json
-fi
-
 echo "Configuring Gluu..."
 cp setup.properties.last.enc /opt/gluu-server/install/community-edition-setup/setup.properties.enc
-ssh  -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
+ssh  -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
                 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
                 -o PubkeyAuthentication=yes root@localhost \
-   "/install/community-edition-setup/setup.py -cnf /install/community-edition-setup/setup.properties.enc -properties-password '$GLUU_PASSWORD' --import-ldif=/opt/dist/signincanada/ldif ; \
-    /opt/dist/signincanada/postinstall.sh"
+   "/install/community-edition-setup/setup.py -cnf /install/community-edition-setup/setup.properties.enc -properties-password '$GLUU_PASSWORD' --import-ldif=/opt/dist/signincanada/ldif"
 
-if [ -f ./oxauth-keys.jks ] ; then
-   echo "Restoring the oxAuth keystore."
-   cat ./oxauth-keys.jks > /opt/gluu-server/etc/certs/oxauth-keys.jks
+echo "Completing Sign In Canada installation..."
+ssh  -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
+                -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+                -o PubkeyAuthentication=yes root@localhost \
+   "/opt/dist/signincanada/postinstall.sh"
+
+if [ -d backups ] ; then
+   echo "Restoring the oxAuth keystore..."
+   cat backups/oxauth-keys.jks > /opt/gluu-server/etc/certs/oxauth-keys.jks
+   echo "Restoring the Passport RS keystore..."
+   cat backups/passport-rs.jks > /opt/gluu-server/etc/certs/passport-rs.jks
+   echo "Restoring the Passport RP keystore and config..."
+   cat backups/passport-rp.jks > /opt/gluu-server/etc/certs/passport-rp.jks
+   cat backups/passport-rp.pem > /opt/gluu-server/etc/certs/passport-rp.pem
+   cat backups/passport-config.json > /opt/gluu-server/etc/gluu/conf/passport-config.json
 fi
 
 if [ -d ./local ] ; then
@@ -195,15 +269,10 @@ if [ -d ./local ] ; then
    cp -R ./local/* /opt/gluu-server
 fi
 
-if [ -f logs.tgz ] ; then
-   echo "Restoring the logs..."
-   tar xzf logs.tgz -C /opt/gluu-server
-fi
-
 echo "Restarting Gluu..."
 /sbin/gluu-serverd restart
 
 echo "Cleaning up..."
-rm -f ${1}.tgz ${1}.tgz.sha
+rm -f ${PACKAGE}.tgz ${PACKAGE}.tgz.sha
 
-echo "${1} has been installed."
+echo "${PACKAGE} has been installed."

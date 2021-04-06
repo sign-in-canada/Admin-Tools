@@ -1,7 +1,21 @@
 # Environment-specific configuration parameters for install.sh
 
+# Package to be installed by default if not specified on the command line.
+# E.g. SIC-AP-X.X.X
+PACKAGE=
+
+# Gluu host name (if different then the VM host name)
+# E.g. auth.id.canada.ca
 HOSTNAME=
+
+# Location of the package to download
 STAGING_URL=
+
+# URL of the Key Vault (omit the trailing slash!)
 KEYVAULT_URL=
+
+# URL of the SAML Federation metadata aggregate. Leave blank to disable installation of Shibboleth
 METADATA_URL=
+
+# Comma-separated list of Couchbase host names
 CB_HOSTS=
