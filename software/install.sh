@@ -144,7 +144,7 @@ else
 		admin_email=signin-authenticanada@tbs-sct.gc.ca
 		oxtrust_admin_password=${GLUU_PASSWORD}
 		$([ -n "${shib_password}" ] && echo "installSaml=True")
-		$([ -n "${shib_password}" ] && echo "couchbaseShibUserPassword=${SHIB_PASSWORD}")
+		$([ -n "${shib_password}" ] && echo "couchbaseShibUserPassword=${shib_password}")
 	EOF
    } |
    openssl enc -aes-256-cbc -pass env:GLUU_PASSWORD -out setup.properties.last.enc
