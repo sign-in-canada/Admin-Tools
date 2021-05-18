@@ -126,7 +126,7 @@ else
 		#$(date)
 		hostname=$HOSTNAME
 		encode_salt=${salt}
-      ip=${ip_addr}
+		ip=${ip_addr}
 		persistence_type=couchbase
 		cb_install=2
 		wrends_install=0
