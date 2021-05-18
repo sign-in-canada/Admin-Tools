@@ -17,7 +17,7 @@ elif [ -z "${PACKAGE}" ]; then
    exit
 fi
 
-product=$(echo ${PACKAGE} | cut -c5-6)
+product=$(echo ${PACKAGE} | cut -d - -f2)
 
 # Obtain the internal IP address
 ip_addr=$(curl -s -H Metadata:true "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2017-08-01&format=text")
@@ -135,7 +135,6 @@ else
 		cb_password=${GLUU_PASSWORD}
 		isCouchbaseUserAdmin=True
 		mappingLocations={"default"\: "couchbase", "user"\: "couchbase", "site"\: "couchbase", "cache"\: "couchbase", "token"\: "couchbase", "session"\: "couchbase"}
-		installPassport=True
 		oxauth_legacyIdTokenClaims=true
 		orgName=TBS-SCT
 		city=Ottawa
@@ -143,6 +142,8 @@ else
 		countryCode=CA
 		admin_email=signin-authenticanada@tbs-sct.gc.ca
 		oxtrust_admin_password=${GLUU_PASSWORD}
+		$([ "$product" = "AP" ] && echo "installPassport=True")
+		$([ "$product" = "MFA" ] && echo "installFido2=True")
 		$([ -n "${shib_password}" ] && echo "installSaml=True")
 		$([ -n "${shib_password}" ] && echo "couchbaseShibUserPassword=${shib_password}")
 	EOF
