@@ -241,6 +241,11 @@ if [ -n "${METADATA_URL}" ] ; then
       /opt/gluu-server/opt/dist/signincanada/shibboleth-idp/conf/metadata-providers.xml
 fi
 
+if [ -f ./passport-central-config.json ] ; then
+   echo "Restoring CSP and IDP configurations"
+   cat ./passport-central-config.json > /opt/gluu-server/install/community-edition-setup/templates/passport-central-config.json
+fi
+
 echo "Configuring Gluu..."
 cp setup.properties.last.enc /opt/gluu-server/install/community-edition-setup/setup.properties.enc
 ssh  -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
