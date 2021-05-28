@@ -1,4 +1,12 @@
 #!/bin/bash
+module=$1
+user=$2
+file=$3
 
-/opt/couchbase/bin/cbimport json -c couchbase://localhost -u $1 -p $2 -b gluu -f list -g "clients_%inum%" -d file://$3
+salt=$(azure/fetchsecret.sh ${module}Salt)
+key=$(echo -n $salt | hexdump -ve '1/1 "%.2x"')
+password_enc=$(azure/fetchsecret.sh ${module}gluuPW)
+password=$(echo ${password_enc} | openssl enc -d -des-ede3 -K ${key} -nosalt -a)
+
+/opt/couchbase/bin/cbimport json -c couchbase://localhost -u $user -p $password -b gluu -f list -g "clients_%inum%" -d file://${file}
 
