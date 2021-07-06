@@ -22,3 +22,4 @@ FROM
 GROUP BY t.Provider"
 
 /opt/couchbase/bin/cbq -u $user -p $PASSWORD -s "${query}" > ${file}.json
+/opt/couchbase/bin/cbq -u $user -p $PASSWORD -s "SELECT oxSectorIdentifier, COUNT(doc) as users FROM gluu_user AS doc WHERE  objectClass = \"pairwiseIdentifier\" GROUP BY oxSectorIdentifier" >> ${file}.json
