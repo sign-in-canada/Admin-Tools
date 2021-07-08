@@ -20,14 +20,14 @@ fi
 product=$(echo ${PACKAGE} | cut -d - -f2)
 
 # Obtain the internal IP address
-ip_addr=$(curl -s -H Metadata:true "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2017-08-01&format=text")
+ip_addr=$(curl -s --retry 5 -H Metadata:true "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2017-08-01&format=text")
 if [ $? -ne 0 ] ; then
    echo "Failed to obtain IP address from the metadata service. Aborting!"
    exit 1
 fi
 
 # Obtain keyvault access token
-token_json=$(curl -s 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net' -H Metadata:true)
+token_json=$(curl --retry 5 -s 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net' -H Metadata:true)
 if [ $? -ne 0 ] ; then
    echo "Failed to obtain an acces token from the metadata service. Aborting!"
    exit 1
@@ -36,9 +36,15 @@ else
 fi
 
 fetchSecret () {
-   json=$(curl -s -H "Authorization: Bearer ${access_token}" "${KEYVAULT_URL}/secrets/${1}?api-version=7.1")
-   if [ $? -ne 0 ] ; then # Error
-      return 1
+   for retries in {1..10} ; do
+      json=$(curl -s --retry 5 -H "Authorization: Bearer ${access_token}" "${KEYVAULT_URL}/secrets/${1}?api-version=7.1") && break
+      echo "Faliled to obtain secret ${1} from keyvault during attempt #${retries} with error code $?"
+      sleep 10
+   done
+   
+   if [ -z "$json" ] ; then # Error
+      echo "Giving up."
+      exit 1
    else
       echo -n ${json} | jq -r '.value'
    fi
