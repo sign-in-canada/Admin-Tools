@@ -26,6 +26,14 @@ if [ $? -ne 0 ] ; then
    exit 1
 fi
 
+# Check connectivity to all yum repositories
+for repourl in $(yum repolist -v | grep Repo-baseurl | awk  '{print $3}') ; do
+   echo -n "checking ${repourl} ... "
+   curl -s -L ${repourl}/repodata/repomd.xml -o  /dev/null && echo "OK" && continue
+   echo "Connection to $repourl failed. Aborting."
+   exit 1
+done
+
 # Obtain keyvault access token
 token_json=$(curl --retry 5 -s 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net' -H Metadata:true)
 if [ $? -ne 0 ] ; then
