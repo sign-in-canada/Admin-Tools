@@ -10,5 +10,6 @@ PASSWORD=$(echo ${password_enc} | openssl enc -d -des-ede3 -K ${key} -nosalt -a)
 export PASSWORD
 file=${directory}/clients-$(date +"%F")
 
-/opt/couchbase/bin/cbq -u $user -p $PASSWORD -s "SELECT gluu.* FROM gluu WHERE objectClass='oxAuthClient' AND oxdId = ''" > ${file}.json
+/opt/couchbase/bin/cbq -u $user -p $PASSWORD -s "SELECT gluu.* FROM gluu WHERE objectClass='oxAuthClient' AND oxdId = ''" |
+    sed -n '/^{/,$p' | jq '.results'> ${file}.json
 openssl enc -aes-256-cbc -pass env:PASSWORD -in ${file}.json -out ${file}.enc
