@@ -17,6 +17,11 @@ elif [ -z "${PACKAGE}" ]; then
    exit
 fi
 
+# Get the couchbase cluster host name(s)
+if [ -z "$CB_HOSTS" ] ; then
+   read -p "Please enter the couchbase cluster hostname or IP => " -e -s CB_HOSTS
+fi
+
 product=$(echo ${PACKAGE} | cut -d - -f2)
 
 # Obtain the internal IP address
@@ -27,6 +32,7 @@ if [ $? -ne 0 ] ; then
 fi
 
 # Check connectivity to all yum repositories
+echo "Checking connectivity to yum repositories..."
 for repourl in $(yum repolist -v | grep Repo-baseurl | awk  '{print $3}') ; do
    echo -n "checking ${repourl} ... "
    curl -s -L ${repourl}/repodata/repomd.xml -o  /dev/null && echo "OK" && continue
@@ -93,6 +99,19 @@ if [ -n "${METADATA_URL}" ] ; then
    fi
 fi
 
+echo "Checking network connectivity to Couchbase server ${CB_HOSTS}..."
+for retries in {1..10} ; do
+   curl -s -f --retry 3 -k -o /dev/null -u gluu:${GLUU_PASSWORD} https://${CB_HOSTS}:18091/pools && echo "Connected successfully." && break
+   echo -n "   Connection attempt #${retries} failed with code $?. "
+   if [ $retries -gt 9 ] ; then
+      echo "Giving Up; Installation aborted."
+      exit 1
+   else
+      echo "Will try again in 60 seconds."
+      sleep 60
+   fi
+done
+
 if [ -f /opt/gluu-server/install/community-edition-setup/setup.properties.last.enc ] ; then
    echo "Existing container detected. Backing up setup.properties..."
    cp /opt/gluu-server/install/community-edition-setup/setup.properties.last.enc .
@@ -128,10 +147,6 @@ if [ -f setup.properties.last.enc ] ; then
    fi
 else
    echo "New install. Creating setup.properties..."
-   # Get the couchbase cluster host name(s)
-   if [ -z "$CB_HOSTS" ] ; then
-      read -p "Please enter the couchbase cluster hostname or IP => " -e -s CB_HOSTS
-   fi
    if [ -z "$HOSTNAME" ] ; then
       HOSTNAME=$(hostname)
    fi
