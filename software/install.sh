@@ -35,7 +35,7 @@ fi
 echo "Checking connectivity to yum repositories..."
 for repourl in $(yum repolist -v | grep Repo-baseurl | awk  '{print $3}') ; do
    echo -n "checking ${repourl} ... "
-   curl -s -L ${repourl}/repodata/repomd.xml -o  /dev/null && echo "OK" && continue
+   curl --cert /etc/pki/rhui/product/content.crt --key /etc/pki/rhui/key.pem -s -L ${repourl}/repodata/repomd.xml -o  /dev/null && echo "OK" && continue
    echo "Connection to $repourl failed. Aborting."
    exit 1
 done
@@ -51,13 +51,19 @@ fi
 
 fetchSecret () {
    for retries in {1..10} ; do
-      json=$(curl -s --retry 5 -H "Authorization: Bearer ${access_token}" "${KEYVAULT_URL}/secrets/${1}?api-version=7.1") && break
-      echo "Faliled to obtain secret ${1} from keyvault during attempt #${retries} with error code $?"
-      sleep 10
+      json=$(curl -s --retry 5 -H "Authorization: Bearer ${access_token}" "${KEYVAULT_URL}/secrets/${1}?api-version=7.1")
+      curl_rc=$?
+      if [[ $curl_rc -ne 0 || -z "$json" || "$json" =~ "error" ]] ; then
+         echo "Faliled to obtain secret ${1} from keyvault during attempt #${retries} with curl error code $curl_rc" >&2
+         echo "Response content was: $json" >&2
+         sleep 10
+      else
+         break
+      fi
    done
    
-   if [ -z "$json" ] ; then # Error
-      echo "Giving up."
+   if (( retries >= 10 )) ; then # Error
+      echo "Giving up." >&2
       exit 1
    else
       echo -n ${json} | jq -r '.value'
