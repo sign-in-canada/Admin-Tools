@@ -311,10 +311,15 @@ if [ -d ./local ] ; then
    cp -R ./local/* /opt/gluu-server
 fi
 
-echo "Restarting Gluu..."
-/sbin/gluu-serverd restart
-
 echo "Cleaning up..."
 rm -f ${PACKAGE}.tgz ${PACKAGE}.tgz.sha
 
 echo "${PACKAGE} has been installed."
+
+needs-restarting -r
+if [ $? -eq 0 ] ; then
+   echo "Restarting Gluu..."
+   /sbin/gluu-serverd restart
+else
+   /sbin/shutdown --reboot now
+fi
