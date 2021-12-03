@@ -105,19 +105,6 @@ if [ -n "${METADATA_URL}" ] ; then
    fi
 fi
 
-echo "Checking network connectivity to Couchbase server ${CB_HOSTS}..."
-for retries in {1..10} ; do
-   curl -s -f --retry 3 -k -o /dev/null -u gluu:${GLUU_PASSWORD} https://${CB_HOSTS}:18091/pools && echo "Connected successfully." && break
-   echo -n "   Connection attempt #${retries} failed with code $?. "
-   if [ $retries -gt 9 ] ; then
-      echo "Giving Up; Installation aborted."
-      exit 1
-   else
-      echo "Will try again in 60 seconds."
-      sleep 60
-   fi
-done
-
 if [ -f /opt/gluu-server/install/community-edition-setup/setup.properties.last.enc ] ; then
    echo "Existing container detected. Backing up setup.properties..."
    cp /opt/gluu-server/install/community-edition-setup/setup.properties.last.enc .
@@ -281,6 +268,19 @@ if [ -f ./passport-central-config.json ] ; then
    echo "Restoring CSP and IDP configurations"
    cat ./passport-central-config.json > /opt/gluu-server/install/community-edition-setup/templates/passport-central-config.json
 fi
+
+echo "Checking network connectivity to Couchbase server ${CB_HOSTS}..."
+for retries in {1..10} ; do
+   curl -s -f --retry 3 -k -o /dev/null -u gluu:${GLUU_PASSWORD} https://${CB_HOSTS}:18091/pools && echo "Connected successfully." && break
+   echo -n "   Connection attempt #${retries} failed with code $?. "
+   if [ $retries -gt 9 ] ; then
+      echo "Giving Up; Installation aborted."
+      exit 1
+   else
+      echo "Will try again in 60 seconds."
+      sleep 60
+   fi
+done
 
 echo "Configuring Gluu..."
 cp setup.properties.last.enc /opt/gluu-server/install/community-edition-setup/setup.properties.enc
