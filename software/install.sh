@@ -164,9 +164,9 @@ else
 		countryCode=CA
 		admin_email=signin-authenticanada@tbs-sct.gc.ca
 		oxtrust_admin_password=${GLUU_PASSWORD}
-		$([ "$product" = "AP" ] && echo "installPassport=True")
-		$([ "$product" = "AP" ] && echo "enable_scim_access_policy=True")
-		$([ "$product" = "MFA" ] && echo "installFido2=True")
+		installPassport=True
+		enable_scim_access_policy=True
+		installFido2=True
 		$([ -n "${shib_password}" ] && echo "installSaml=True")
 		$([ -n "${shib_password}" ] && echo "couchbaseShibUserPassword=${shib_password}")
 	EOF
