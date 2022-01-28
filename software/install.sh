@@ -61,7 +61,7 @@ fetchSecret () {
          break
       fi
    done
-   
+
    if (( retries >= 10 )) ; then # Error
       echo "Giving up." >&2
       exit 1
@@ -104,19 +104,6 @@ if [ -n "${METADATA_URL}" ] ; then
       exit 1
    fi
 fi
-
-echo "Checking network connectivity to Couchbase server ${CB_HOSTS}..."
-for retries in {1..10} ; do
-   curl -s -f --retry 3 -k -o /dev/null -u gluu:${GLUU_PASSWORD} https://${CB_HOSTS}:18091/pools && echo "Connected successfully." && break
-   echo -n "   Connection attempt #${retries} failed with code $?. "
-   if [ $retries -gt 9 ] ; then
-      echo "Giving Up; Installation aborted."
-      exit 1
-   else
-      echo "Will try again in 60 seconds."
-      sleep 60
-   fi
-done
 
 if [ -f /opt/gluu-server/install/community-edition-setup/setup.properties.last.enc ] ; then
    echo "Existing container detected. Backing up setup.properties..."
@@ -169,17 +156,15 @@ else
 		couchebaseClusterAdmin=gluu
 		cb_password=${GLUU_PASSWORD}
 		isCouchbaseUserAdmin=True
-		mappingLocations={"default"\: "couchbase", "user"\: "couchbase", "site"\: "couchbase", "cache"\: "couchbase", "token"\: "couchbase", "session"\: "couchbase"}
-		oxauth_legacyIdTokenClaims=true
+		oxauth_legacyIdTokenClaims=True
 		orgName=TBS-SCT
 		city=Ottawa
 		state=ON
 		countryCode=CA
 		admin_email=signin-authenticanada@tbs-sct.gc.ca
 		oxtrust_admin_password=${GLUU_PASSWORD}
-		$([ "$product" = "AP" ] && echo "installPassport=True")
-		$([ "$product" = "AP" ] && echo "enable_scim_access_policy=True")
-		$([ "$product" = "MFA" ] && echo "installFido2=True")
+		installPassport=True
+		installFido2=True
 		$([ -n "${shib_password}" ] && echo "installSaml=True")
 		$([ -n "${shib_password}" ] && echo "couchbaseShibUserPassword=${shib_password}")
 	EOF
@@ -187,7 +172,7 @@ else
    openssl enc -aes-256-cbc -pass env:GLUU_PASSWORD -out setup.properties.last.enc
 fi
 
-# Download the product tarball 
+# Download the product tarball
 echo Downloading ${PACKAGE}...
 wget -nv ${STAGING_URL}/${PACKAGE}.tgz -O ${PACKAGE}.tgz
 if [ $? -ne 0 ] ; then
@@ -222,17 +207,17 @@ fi
 echo "Importing the Gluu GPG Key"
 rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU
 
-if [ ! -f ./gluu-server-4.2.3-*.x86_64.rpm ] ; then
+if [ ! -f ./gluu-server-4.3.1-*.x86_64.rpm ] ; then
    echo "Downloading Gluu Server"
    if grep Red /etc/redhat-release ; then
-      wget -nv https://repo.gluu.org/rhel/7/gluu-server-4.2.3-rhel7.x86_64.rpm
+      wget -nv https://repo.gluu.org/rhel/7/gluu-server-4.3.1-rhel7.x86_64.rpm
    else
-      wget -nv https://repo.gluu.org/centos/7/gluu-server-4.2.3-centos7.x86_64.rpm
+      wget -nv https://repo.gluu.org/centos/7/gluu-server-4.3.1-centos7.x86_64.rpm
    fi
 fi
 
 echo "Checking integrity of the Gluu RPM..."
-rpm -K ./gluu-server-4.2.3-*.x86_64.rpm
+rpm -K ./gluu-server-4.3.1-*.x86_64.rpm
 if [ $? -eq 0 ] ; then
    echo "Passed."
 else
@@ -245,7 +230,7 @@ yum remove -y gluu-server > /dev/null 2>&1
 rm -rf /opt/gluu-server*
 
 echo "Reinstalling Gluu..."
-yum localinstall -y ./gluu-server-4.2.3-*.x86_64.rpm
+yum localinstall -y ./gluu-server-4.3.1-*.x86_64.rpm
 
 while [ ! -f /opt/gluu-server/install/community-edition-setup/setup.py ] ; do
    echo "Gluu Setup was not extracted. Trying again..."
@@ -253,7 +238,7 @@ while [ ! -f /opt/gluu-server/install/community-edition-setup/setup.py ] ; do
    sleep 5
    ssh -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
                   -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-                  -o PubkeyAuthentication=yes root@localhost '/opt/gluu/bin/install.py'  
+                  -o PubkeyAuthentication=yes root@localhost '/opt/gluu/bin/install.py'
 done
 
 echo "Adding Sign In Canada customizations..."
@@ -279,10 +264,24 @@ fi
 
 if [ -f ./passport-central-config.json ] ; then
    echo "Restoring CSP and IDP configurations"
-   cat ./passport-central-config.json > /opt/gluu-server/install/community-edition-setup/templates/passport-central-config.json
+   cat ./passport-central-config.json > /opt/gluu-server/install/community-edition-setup/templates/passport/passport-central-config.json
 fi
 
+echo "Checking network connectivity to Couchbase server ${CB_HOSTS}..."
+for retries in {1..10} ; do
+   curl -s -f --retry 3 -k -o /dev/null -u gluu:${GLUU_PASSWORD} https://${CB_HOSTS}:18091/pools && echo "Connected successfully." && break
+   echo -n "   Connection attempt #${retries} failed with code $?. "
+   if [ $retries -gt 9 ] ; then
+      echo "Giving Up; Installation aborted."
+      exit 1
+   else
+      echo "Will try again in 60 seconds."
+      sleep 60
+   fi
+done
+
 echo "Configuring Gluu..."
+sed -i 's/enc with password {1}/enc with password/' /opt/gluu-server/install/community-edition-setup/setup_app/utils/properties_utils.py
 cp setup.properties.last.enc /opt/gluu-server/install/community-edition-setup/setup.properties.enc
 ssh  -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
                 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
@@ -311,10 +310,15 @@ if [ -d ./local ] ; then
    cp -R ./local/* /opt/gluu-server
 fi
 
-echo "Restarting Gluu..."
-/sbin/gluu-serverd restart
-
 echo "Cleaning up..."
 rm -f ${PACKAGE}.tgz ${PACKAGE}.tgz.sha
 
 echo "${PACKAGE} has been installed."
+
+needs-restarting -r
+if [ $? -eq 0 ] ; then
+   echo "Restarting Gluu..."
+   /sbin/gluu-serverd restart
+else
+   /sbin/shutdown --reboot now
+fi
