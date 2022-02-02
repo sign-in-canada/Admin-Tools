@@ -156,7 +156,6 @@ else
 		couchebaseClusterAdmin=gluu
 		cb_password=${GLUU_PASSWORD}
 		isCouchbaseUserAdmin=True
-		oxauth_legacyIdTokenClaims=True
 		orgName=TBS-SCT
 		city=Ottawa
 		state=ON
