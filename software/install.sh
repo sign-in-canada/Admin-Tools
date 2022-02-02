@@ -281,6 +281,7 @@ for retries in {1..10} ; do
 done
 
 echo "Configuring Gluu..."
+sed -i 's/key_expiration=2,/key_expiration=730,/' /opt/gluu-server/install/community-edition-setup/setup_app/installers/oxauth.py
 sed -i 's/enc with password {1}/enc with password/' /opt/gluu-server/install/community-edition-setup/setup_app/utils/properties_utils.py
 cp setup.properties.last.enc /opt/gluu-server/install/community-edition-setup/setup.properties.enc
 ssh  -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
