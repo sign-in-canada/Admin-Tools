@@ -61,7 +61,7 @@ fetchSecret () {
          break
       fi
    done
-   
+
    if (( retries >= 10 )) ; then # Error
       echo "Giving up." >&2
       exit 1
@@ -156,8 +156,6 @@ else
 		couchebaseClusterAdmin=gluu
 		cb_password=${GLUU_PASSWORD}
 		isCouchbaseUserAdmin=True
-		mappingLocations={"default"\: "couchbase", "user"\: "couchbase", "site"\: "couchbase", "cache"\: "couchbase", "token"\: "couchbase", "session"\: "couchbase"}
-		oxauth_legacyIdTokenClaims=true
 		orgName=TBS-SCT
 		city=Ottawa
 		state=ON
@@ -165,7 +163,6 @@ else
 		admin_email=signin-authenticanada@tbs-sct.gc.ca
 		oxtrust_admin_password=${GLUU_PASSWORD}
 		installPassport=True
-		enable_scim_access_policy=True
 		installFido2=True
 		$([ -n "${shib_password}" ] && echo "installSaml=True")
 		$([ -n "${shib_password}" ] && echo "couchbaseShibUserPassword=${shib_password}")
@@ -174,7 +171,7 @@ else
    openssl enc -aes-256-cbc -pass env:GLUU_PASSWORD -out setup.properties.last.enc
 fi
 
-# Download the product tarball 
+# Download the product tarball
 echo Downloading ${PACKAGE}...
 wget -nv ${STAGING_URL}/${PACKAGE}.tgz -O ${PACKAGE}.tgz
 if [ $? -ne 0 ] ; then
@@ -209,17 +206,17 @@ fi
 echo "Importing the Gluu GPG Key"
 rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU
 
-if [ ! -f ./gluu-server-4.2.3-*.x86_64.rpm ] ; then
+if [ ! -f ./gluu-server-4.3.1-*.x86_64.rpm ] ; then
    echo "Downloading Gluu Server"
    if grep Red /etc/redhat-release ; then
-      wget -nv https://repo.gluu.org/rhel/7/gluu-server-4.2.3-rhel7.x86_64.rpm
+      wget -nv https://repo.gluu.org/rhel/7/gluu-server-4.3.1-rhel7.x86_64.rpm
    else
-      wget -nv https://repo.gluu.org/centos/7/gluu-server-4.2.3-centos7.x86_64.rpm
+      wget -nv https://repo.gluu.org/centos/7/gluu-server-4.3.1-centos7.x86_64.rpm
    fi
 fi
 
 echo "Checking integrity of the Gluu RPM..."
-rpm -K ./gluu-server-4.2.3-*.x86_64.rpm
+rpm -K ./gluu-server-4.3.1-*.x86_64.rpm
 if [ $? -eq 0 ] ; then
    echo "Passed."
 else
@@ -232,7 +229,7 @@ yum remove -y gluu-server > /dev/null 2>&1
 rm -rf /opt/gluu-server*
 
 echo "Reinstalling Gluu..."
-yum localinstall -y ./gluu-server-4.2.3-*.x86_64.rpm
+yum localinstall -y ./gluu-server-4.3.1-*.x86_64.rpm
 
 while [ ! -f /opt/gluu-server/install/community-edition-setup/setup.py ] ; do
    echo "Gluu Setup was not extracted. Trying again..."
@@ -240,7 +237,7 @@ while [ ! -f /opt/gluu-server/install/community-edition-setup/setup.py ] ; do
    sleep 5
    ssh -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
                   -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-                  -o PubkeyAuthentication=yes root@localhost '/opt/gluu/bin/install.py'  
+                  -o PubkeyAuthentication=yes root@localhost '/opt/gluu/bin/install.py'
 done
 
 echo "Adding Sign In Canada customizations..."
@@ -266,7 +263,7 @@ fi
 
 if [ -f ./passport-central-config.json ] ; then
    echo "Restoring CSP and IDP configurations"
-   cat ./passport-central-config.json > /opt/gluu-server/install/community-edition-setup/templates/passport-central-config.json
+   cat ./passport-central-config.json > /opt/gluu-server/install/community-edition-setup/templates/passport/passport-central-config.json
 fi
 
 echo "Checking network connectivity to Couchbase server ${CB_HOSTS}..."
@@ -283,6 +280,11 @@ for retries in {1..10} ; do
 done
 
 echo "Configuring Gluu..."
+sed -i 's/key_expiration=2,/key_expiration=730,/' /opt/gluu-server/install/community-edition-setup/setup_app/installers/oxauth.py
+sed -i 's/enc with password {1}/enc with password/' /opt/gluu-server/install/community-edition-setup/setup_app/utils/properties_utils.py
+sed -i 's|/usr/java/latest/jre/lib/security/cacerts|%(defaultTrustStoreFN)s|' /opt/gluu-server/install/community-edition-setup/templates/oxtrust/oxtrust-config.json
+sed -i 's|\"caCertsPassphrase\":\"\"|\"caCertsPassphrase\":\"%(defaultTrustStorePW)s\"|' /opt/gluu-server/install/community-edition-setup/templates/oxtrust/oxtrust-config.json
+
 cp setup.properties.last.enc /opt/gluu-server/install/community-edition-setup/setup.properties.enc
 ssh  -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
                 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
