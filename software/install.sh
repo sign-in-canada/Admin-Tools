@@ -282,6 +282,9 @@ done
 echo "Configuring Gluu..."
 sed -i 's/key_expiration=2,/key_expiration=730,/' /opt/gluu-server/install/community-edition-setup/setup_app/installers/oxauth.py
 sed -i 's/enc with password {1}/enc with password/' /opt/gluu-server/install/community-edition-setup/setup_app/utils/properties_utils.py
+sed -i 's|/usr/java/latest/jre/lib/security/cacerts|%(defaultTrustStoreFN)s|' /opt/gluu-server/install/community-edition-setup/templates/oxtrust/oxtrust-config.json
+sed -i 's|\"caCertsPassphrase\":\"\"|\"caCertsPassphrase\":\"%(defaultTrustStorePW)s\"|' /opt/gluu-server/install/community-edition-setup/templates/oxtrust/oxtrust-config.json
+
 cp setup.properties.last.enc /opt/gluu-server/install/community-edition-setup/setup.properties.enc
 ssh  -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
                 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
