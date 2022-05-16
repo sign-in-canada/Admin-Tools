@@ -1,0 +1,2 @@
+update `gluu` set META().expiration = 3600 where `objectClass` = 'oxUmaResourcePermission';
+update `gluu_token` set META().expiration = 3600 where `objectClass` = 'oxAuthUmaRPT';
