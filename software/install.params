@@ -19,3 +19,6 @@ METADATA_URL=
 
 # Comma-separated list of Couchbase host names
 CB_HOSTS=
+
+# Azure Monitor Logs Workspace ID
+LOG_WORKSPACE=
