@@ -206,17 +206,17 @@ fi
 echo "Importing the Gluu GPG Key"
 rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU
 
-if [ ! -f ./gluu-server-4.3.1-*.x86_64.rpm ] ; then
+if [ ! -f ./gluu-server-4.4.0-*.x86_64.rpm ] ; then
    echo "Downloading Gluu Server"
    if grep Red /etc/redhat-release ; then
-      wget -nv https://repo.gluu.org/rhel/7/gluu-server-4.3.1-rhel7.x86_64.rpm
+      wget -nv https://repo.gluu.org/rhel/7/gluu-server-4.4.0-rhel7.x86_64.rpm
    else
-      wget -nv https://repo.gluu.org/centos/7/gluu-server-4.3.1-centos7.x86_64.rpm
+      wget -nv https://repo.gluu.org/centos/7/gluu-server-4.4.0-centos7.x86_64.rpm
    fi
 fi
 
 echo "Checking integrity of the Gluu RPM..."
-rpm -K ./gluu-server-4.3.1-*.x86_64.rpm
+rpm -K ./gluu-server-4.4.0-*.x86_64.rpm
 if [ $? -eq 0 ] ; then
    echo "Passed."
 else
@@ -229,7 +229,7 @@ yum remove -y gluu-server > /dev/null 2>&1
 rm -rf /opt/gluu-server*
 
 echo "Reinstalling Gluu..."
-yum localinstall -y ./gluu-server-4.3.1-*.x86_64.rpm
+yum localinstall -y ./gluu-server-4.4.0-*.x86_64.rpm
 
 while [ ! -f /opt/gluu-server/install/community-edition-setup/setup.py ] ; do
    echo "Gluu Setup was not extracted. Trying again..."
@@ -282,7 +282,7 @@ done
 echo "Configuring Gluu..."
 sed -i 's/key_expiration=2,/key_expiration=730,/' /opt/gluu-server/install/community-edition-setup/setup_app/installers/oxauth.py
 sed -i 's/enc with password {1}/enc with password/' /opt/gluu-server/install/community-edition-setup/setup_app/utils/properties_utils.py
-sed -i 's|/usr/java/latest/jre/lib/security/cacerts|%(defaultTrustStoreFN)s|' /opt/gluu-server/install/community-edition-setup/templates/oxtrust/oxtrust-config.json
+sed -i 's|/usr/java/latest/jre/lib/security/cacerts|%(default_trust_store_fn)s|' /opt/gluu-server/install/community-edition-setup/templates/oxtrust/oxtrust-config.json
 sed -i 's|\"caCertsPassphrase\":\"\"|\"caCertsPassphrase\":\"%(defaultTrustStorePW)s\"|' /opt/gluu-server/install/community-edition-setup/templates/oxtrust/oxtrust-config.json
 
 cp setup.properties.last.enc /opt/gluu-server/install/community-edition-setup/setup.properties.enc
