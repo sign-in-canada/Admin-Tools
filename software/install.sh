@@ -115,7 +115,7 @@ if [ -f /opt/gluu-server/etc/certs/oxauth-keys.jks ] ; then
    if [ ! -d backups ] ; then
       mkdir backups
    fi
-   cp /opt/gluu-server/etc/certs/oxauth-keys.jks backups
+   cp /opt/gluu-server/etc/certs/oxauth-keys.pkcs12 backups
    cp /opt/gluu-server/etc/certs/passport-rs.jks backups
    cp /opt/gluu-server/etc/certs/passport-rp.jks backups
    cp /opt/gluu-server/etc/certs/passport-rp.pem backups
@@ -302,7 +302,7 @@ echo "LOG_WORKSPACE=${LOG_WORKSPACE}" >> /opt/gluu-server/etc/default/logstash
 
 if [ -d backups ] ; then
    echo "Restoring the oxAuth keystore..."
-   cat backups/oxauth-keys.jks > /opt/gluu-server/etc/certs/oxauth-keys.jks
+   cat backups/oxauth-keys.jks > /opt/gluu-server/etc/certs/oxauth-keys.pkcs12
    echo "Restoring the Passport RS keystore..."
    cat backups/passport-rs.jks > /opt/gluu-server/etc/certs/passport-rs.jks
    echo "Restoring the Passport RP keystore and config..."
