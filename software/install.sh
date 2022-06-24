@@ -110,7 +110,7 @@ if [ -f /opt/gluu-server/install/community-edition-setup/setup.properties.last.e
    cp /opt/gluu-server/install/community-edition-setup/setup.properties.last.enc .
 fi
 
-if [ -f /opt/gluu-server/etc/certs/oxauth-keys.jks ] ; then
+if [ -f /opt/gluu-server/etc/certs/oxauth-keys.pkcs12 ] ; then
    echo "Backing up the oxAuth and Passport keystores..."
    if [ ! -d backups ] ; then
       mkdir backups
@@ -302,7 +302,7 @@ echo "LOG_WORKSPACE=${LOG_WORKSPACE}" >> /opt/gluu-server/etc/default/logstash
 
 if [ -d backups ] ; then
    echo "Restoring the oxAuth keystore..."
-   cat backups/oxauth-keys.jks > /opt/gluu-server/etc/certs/oxauth-keys.pkcs12
+   cat backups/oxauth-keys.pkcs12 > /opt/gluu-server/etc/certs/oxauth-keys.pkcs12
    echo "Restoring the Passport RS keystore..."
    cat backups/passport-rs.jks > /opt/gluu-server/etc/certs/passport-rs.jks
    echo "Restoring the Passport RP keystore and config..."
