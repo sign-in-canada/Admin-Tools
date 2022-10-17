@@ -296,6 +296,7 @@ ssh  -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QU
                 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
                 -o PubkeyAuthentication=yes root@localhost \
    "/opt/dist/signincanada/postinstall.sh"
+echo "LOG_WORKSPACE=${LOG_WORKSPACE}" >> /opt/gluu-server/etc/default/logstash
 
 if [ -d backups ] ; then
    echo "Restoring the oxAuth keystore..."
