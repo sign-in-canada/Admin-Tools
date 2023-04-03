@@ -20,7 +20,7 @@ sed -i 's|/usr/java/latest/jre/lib/security/cacerts|%(default_trust_store_fn)s|'
 sed -i 's|\"caCertsPassphrase\":\"\"|\"caCertsPassphrase\":\"%(defaultTrustStorePW)s\"|' /opt/gluu-server/install/community-edition-setup/templates/oxtrust/oxtrust-config.json
 sed -i '/^\s*start_services()$/d' /opt/gluu-server/install/community-edition-setup/setup.py
 
-echo "Installing & Updating Conbtainer packages..."
+echo "Installing & Updating Container packages..."
 ssh  -T -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
                 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
                 -o PubkeyAuthentication=yes root@localhost <<-EOF
