@@ -241,6 +241,7 @@ while [ ! -f /opt/gluu-server/install/community-edition-setup/setup.py ] ; do
 done
 
 echo "Adding Sign In Canada customizations..."
+rm -f /opt/gluu-server/opt/dist/app/amazon-corretto-*.tar.gz
 tar xvzf ${PACKAGE}.tgz -C /opt/gluu-server/
 
 if grep Red /etc/redhat-release ; then
