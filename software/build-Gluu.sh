@@ -2,7 +2,20 @@
 
 echo "Installing Gluu Server"
 rpm --import https://repo.gluu.org/rhel/RPM-GPG-KEY-GLUU
-yum install -y https://repo.gluu.org/rhel/7/gluu-server-4.4.0-rhel7.x86_64.rpm
+if grep Red /etc/redhat-release ; then
+   wget -nv https://repo.gluu.org/rhel/7/gluu-server-4.4.0-rhel7.x86_64.rpm
+else
+   wget -nv https://repo.gluu.org/centos/7/gluu-server-4.4.0-centos7.x86_64.rpm
+fi
+echo "Checking integrity of the Gluu RPM..."
+rpm -K ./gluu-server-4.4.0-*.x86_64.rpm
+if [ $? -eq 0 ] ; then
+   echo "Passed."
+else
+   echo "Failed. Aborting!"
+   exit 1
+fi
+yum install -y gluu-server-4.4.0-*.x86_64.rpm
 
 while [ ! -f /opt/gluu-server/install/community-edition-setup/setup.py ] ; do
    echo "Gluu Setup was not extracted. Trying again..."
