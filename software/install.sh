@@ -31,11 +31,11 @@ if [ $? -ne 0 ] ; then
    exit 1
 fi
 
-# Check connectivity to all yum repositories
-echo "Checking connectivity to yum repositories..."
-for repourl in $(yum repolist -v | grep Repo-baseurl | awk  '{print $3}') ; do
+# Check connectivity to all dnf repositories
+echo "Checking connectivity to dnf repositories..."
+for repourl in $(dnf repolist -v | grep Repo-baseurl | awk  '{print $3}') ; do
    echo -n "checking ${repourl} ... "
-   curl --cert /etc/pki/rhui/product/content.crt --key /etc/pki/rhui/key.pem -s -L ${repourl}/repodata/repomd.xml -o  /dev/null && echo "OK" && continue
+   curl --cert /etc/pki/rhui/product/content.crt --key /etc/pki/rhui/private/key.pem -s -L ${repourl}/repodata/repomd.xml -o  /dev/null && echo "OK" && continue
    echo "Connection to $repourl failed. Aborting."
    exit 1
 done
@@ -126,11 +126,11 @@ if [ -f setup.properties.last.enc ] ; then
    echo "Found setup.properties.last.enc. An update will be performed."
 
    # Check to see if loadData is turned off
-   if openssl enc -d -aes-256-cbc -pass env:GLUU_PASSWORD -in setup.properties.last.enc | grep -q "loadData=True" ; then
+   if openssl enc -pbkdf2 -d -aes-256-cbc -pass env:GLUU_PASSWORD -in setup.properties.last.enc | grep -q "loadData=True" ; then
       echo "Disabling database initialization"
-      openssl enc -d -aes-256-cbc -pass env:GLUU_PASSWORD -in setup.properties.last.enc |
+      openssl enc -pbkdf2 -d -aes-256-cbc -pass env:GLUU_PASSWORD -in setup.properties.last.enc |
          sed -e "/^loadData=True/ s/.*/loadData=False/g" |
-         openssl enc -aes-256-cbc -pass env:GLUU_PASSWORD -out setup.properties.last.new
+         openssl enc -pbkdf2 -aes-256-cbc -pass env:GLUU_PASSWORD -out setup.properties.last.new
       if [ $? -ne 0 ] ; then
          echo "Could not disable database initialization. Aborting!"
          exit 1
@@ -168,7 +168,7 @@ else
 		$([ -n "${shib_password}" ] && echo "couchbaseShibUserPassword=${shib_password}")
 	EOF
    } |
-   openssl enc -aes-256-cbc -pass env:GLUU_PASSWORD -out setup.properties.last.enc
+   openssl enc -pbkdf2 -aes-256-cbc -pass env:GLUU_PASSWORD -out setup.properties.last.enc
 fi
 
 # Download the product tarball
@@ -197,7 +197,7 @@ fi
 
 if [ ! -f /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU ] ; then
    echo "Attepmting to Download Gluu GPG Key"
-   wget -nv https://repo.gluu.org/rhel/RPM-GPG-KEY-GLUU -O /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU
+   wget --user=tb_of_canada_secretariat --password=$(fetchSecret GluuRepoPW) -nv https://repo.gluu.org/rhel/RPM-GPG-KEY-GLUU -O /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU
    if [ $? -ne 0 ] ; then
       echo "Gluu GPG Key Download Failed. Aborting!"
       exit 1
@@ -206,17 +206,17 @@ fi
 echo "Importing the Gluu GPG Key"
 rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU
 
-if [ ! -f ./gluu-server-4.4.0-*.x86_64.rpm ] ; then
+if [ ! -f ./gluu-server-4.5.1-*.x86_64.rpm ] ; then
    echo "Downloading Gluu Server"
    if grep Red /etc/redhat-release ; then
-      wget -nv https://repo.gluu.org/rhel/7/gluu-server-4.4.0-rhel7.x86_64.rpm
+      wget --user=tb_of_canada_secretariat --password=$(fetchSecret GluuRepoPW) -nv https://repo.gluu.org/rhel/8/gluu-server-4.5.1-2.rhel8.x86_64.rpm
    else
-      wget -nv https://repo.gluu.org/centos/7/gluu-server-4.4.0-centos7.x86_64.rpm
+      wget --user=tb_of_canada_secretariat --password=$(fetchSecret GluuRepoPW) -nv https://repo.gluu.org/centos/8/gluu-server-4.5.1-2.centos8.x86_64.rpm
    fi
 fi
 
 echo "Checking integrity of the Gluu RPM..."
-rpm -K ./gluu-server-4.4.0-*.x86_64.rpm
+rpm -K ./gluu-server-4.5.1-*.x86_64.rpm
 if [ $? -eq 0 ] ; then
    echo "Passed."
 else
@@ -225,11 +225,11 @@ else
 fi
 
 echo "Uninstalling Gluu..."
-yum remove -y gluu-server > /dev/null 2>&1
+dnf remove -y gluu-server > /dev/null 2>&1
 rm -rf /opt/gluu-server*
 
 echo "Reinstalling Gluu..."
-yum localinstall -y ./gluu-server-4.4.0-*.x86_64.rpm
+dnf localinstall -y ./gluu-server-4.5.1-*.x86_64.rpm
 
 while [ ! -f /opt/gluu-server/install/community-edition-setup/setup.py ] ; do
    echo "Gluu Setup was not extracted. Trying again..."
@@ -241,17 +241,18 @@ while [ ! -f /opt/gluu-server/install/community-edition-setup/setup.py ] ; do
 done
 
 echo "Adding Sign In Canada customizations..."
-rm -f /opt/gluu-server/opt/dist/app/amazon-corretto-*.tar.gz
 tar xvzf ${PACKAGE}.tgz -C /opt/gluu-server/
 
-if grep Red /etc/redhat-release ; then
-   echo "Configuring RedHat package repositories..."
-   rm -rf /opt/gluu-server/etc/yum.repos.d/*
-   cp -R /etc/yum.repos.d/epel-custom.repo /opt/gluu-server/etc/yum.repos.d
-   cp -R /etc/yum.repos.d/redhat.repo /opt/gluu-server/etc/yum.repos.d
-   cp -R /etc/yum.repos.d/rh-cloud.repo /opt/gluu-server/etc/yum.repos.d
-   cp -R /etc/pki/rhui /opt/gluu-server/etc/pki
-fi
+echo "Updating container..."
+ssh  -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
+                -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+                -o PubkeyAuthentication=yes root@localhost \
+                "rpm -e rh-amazon-rhui-client; \
+                 dnf clean all; \
+                 dnf -y --config=/opt/dist/app/rhui-microsoft-azure-rhel8.config install rhui-azure-rhel8; \
+                 dnf update -y; \
+                 rm -f /var/lib/sss/db/*; \
+                 systemctl restart sssd"
 
 echo "Configuring Keyvault URL..."
 echo "KEYVAULT=${KEYVAULT_URL}" > /opt/gluu-server/etc/default/azure
@@ -283,6 +284,8 @@ done
 echo "Patching Gluu setup..."
 sed -i 's/key_expiration=2,/key_expiration=730,/' /opt/gluu-server/install/community-edition-setup/setup_app/installers/oxauth.py
 sed -i 's/enc with password {1}/enc with password/' /opt/gluu-server/install/community-edition-setup/setup_app/utils/properties_utils.py
+sed -i "162s/]/, '-pbkdf2']/" /opt/gluu-server/install/community-edition-setup/setup_app/utils/properties_utils.py
+sed -i "343s/]/, '-pbkdf2']/" /opt/gluu-server/install/community-edition-setup/setup_app/utils/properties_utils.py
 sed -i 's|/usr/java/latest/jre/lib/security/cacerts|%(default_trust_store_fn)s|' /opt/gluu-server/install/community-edition-setup/templates/oxtrust/oxtrust-config.json
 sed -i 's|\"caCertsPassphrase\":\"\"|\"caCertsPassphrase\":\"%(defaultTrustStorePW)s\"|' /opt/gluu-server/install/community-edition-setup/templates/oxtrust/oxtrust-config.json
 sed -i '/^\s*start_services()$/d' /opt/gluu-server/install/community-edition-setup/setup.py
@@ -322,10 +325,4 @@ rm -f ${PACKAGE}.tgz ${PACKAGE}.tgz.sha
 
 echo "${PACKAGE} has been installed."
 
-needs-restarting -r
-if [ $? -eq 0 ] ; then
-   echo "Restarting Gluu..."
-   /sbin/gluu-serverd restart
-else
-   /sbin/shutdown --reboot now
-fi
+/sbin/shutdown --reboot now
