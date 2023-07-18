@@ -35,7 +35,7 @@ fi
 echo "Checking connectivity to yum repositories..."
 for repourl in $(yum repolist -v | grep Repo-baseurl | awk  '{print $3}') ; do
    echo -n "checking ${repourl} ... "
-   curl --cert /etc/pki/rhui/product/content.crt --key /etc/pki/rhui/key.pem -s -L ${repourl}/repodata/repomd.xml -o  /dev/null && echo "OK" && continue
+   curl --cert /etc/pki/rhui/product/content-base.crt --key /etc/pki/rhui/private/key-base.pem -s -L ${repourl}/repodata/repomd.xml -o  /dev/null && echo "OK" && continue
    echo "Connection to $repourl failed. Aborting."
    exit 1
 done
@@ -249,7 +249,7 @@ if grep Red /etc/redhat-release ; then
    rm -rf /opt/gluu-server/etc/yum.repos.d/*
    cp -R /etc/yum.repos.d/epel-custom.repo /opt/gluu-server/etc/yum.repos.d
    cp -R /etc/yum.repos.d/redhat.repo /opt/gluu-server/etc/yum.repos.d
-   cp -R /etc/yum.repos.d/rh-cloud.repo /opt/gluu-server/etc/yum.repos.d
+   cp -R /etc/yum.repos.d/rh-cloud-base.repo /opt/gluu-server/etc/yum.repos.d
    cp -R /etc/pki/rhui /opt/gluu-server/etc/pki
 fi
 
