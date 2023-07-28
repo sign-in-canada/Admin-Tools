@@ -10,7 +10,7 @@ export CB_REST_PASSWORD=$2
   --disable-http-ui 1 \
   --tls-min-version tlsv1.2 \
   --set --tls-honor-cipher-order 1 \
-  --cipher-suites TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 \
+  --cipher-suites TLS_AES_256_GCM_SHA384 \
   --cluster-encryption-level all
 
 /opt/couchbase/bin/couchbase-cli  setting-autofailover -c localhost:8091 \
