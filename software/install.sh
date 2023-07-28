@@ -35,7 +35,7 @@ fi
 echo "Checking connectivity to dnf repositories..."
 for repourl in $(dnf repolist -v | grep Repo-baseurl | awk  '{print $3}') ; do
    echo -n "checking ${repourl} ... "
-   curl --cert /etc/pki/rhui/product/content.crt --key /etc/pki/rhui/private/key.pem -s -L ${repourl}/repodata/repomd.xml -o  /dev/null && echo "OK" && continue
+   curl --cert /etc/pki/rhui/product/content-base.crt --key /etc/pki/rhui/private/key-base.pem -s -L ${repourl}/repodata/repomd.xml -o  /dev/null && echo "OK" && continue
    echo "Connection to $repourl failed. Aborting."
    exit 1
 done
