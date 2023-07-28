@@ -243,6 +243,9 @@ done
 echo "Adding Sign In Canada customizations..."
 tar xvzf ${PACKAGE}.tgz -C /opt/gluu-server/
 
+echo "Applying oxTrust SP1 patch"
+curl --user "tb_of_canada_secretariat:$(fetchSecret GluuRepoPW)" https://maven.gluu.org/maven/org/gluu/oxtrust-server/4.5.1.sp1/oxtrust-server-4.5.1.sp1.war > /opt/gluu-server/opt/dist/gluu/identity.war
+
 echo "Updating container..."
 ssh  -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
                 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
