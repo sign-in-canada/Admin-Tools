@@ -42,7 +42,7 @@ else
 fi
 
 echo "Extracting Sign In Canada customizations..."
-tar xvzf ${PACKAGE}.tgz opt/dist/signincanada/custom.tgz opt/dist/gluu/passport-version_4.4.0-node_modules.tar.gz opt/dist/gluu/passport.tgz
+tar xvzf ${PACKAGE}.tgz opt/dist/signincanada/custom.tgz opt/dist/gluu/passport-version_4.4.0-node_modules.tar.gz opt/dist/gluu/passport.tgz opt/azure/applicationinsights-agent-*.jar
 
 if ! cmp --silent opt/dist/signincanada/custom.tgz /opt/gluu-server/opt/dist/signincanada/custom.tgz ; then
    echo "Updating oxAuth customizations"
@@ -83,8 +83,25 @@ if ! cmp --silent opt/dist/gluu/passport-version_4.4.0-node_modules.tar.gz /opt/
     systemctl start passport"
 fi
 
+newagent=$(find opt/azure/ -name applicationinsights-agent-*.jar -printf '%f\n')
+oldagent=$(find /opt/gluu-server/opt/azure/ -name applicationinsights-agent-*.jar -printf '%f\n')
+if [ "$newagent" != "$oldagent" ] ; then
+   echo "Updating Application Insights Java agent"
+   cp opt/azure/$newagent /opt/gluu-server/opt/azure
+   mv /opt/gluu-server/opt/azure/$oldagent /opt/gluu-server/opt/azure/$oldagent.old
+   sed -i "s/$oldagent/$newagent/" /opt/gluu-server/etc/default/oxauth
+   sed -i "s/$oldagent/$newagent/" /opt/gluu-server/etc/default/identity
+   if [ -f /opt/gluu-server/etc/default/fido ] ; then
+      sed -i "s/$oldagent/$newagent/" /opt/gluu-server/etc/default/fido
+   fi
+   if [ -f /opt/gluu-server/etc/default/idp ] ; then
+      sed -i "s/$oldagent/$newagent/" /opt/gluu-server/etc/default/idp
+   fi
+fi
+
 echo "Cleaning up..."
 rm -f ${PACKAGE}.tgz ${PACKAGE}.tgz.sha
 rm -rf opt
 
 echo "${PACKAGE} has been installed."
+
