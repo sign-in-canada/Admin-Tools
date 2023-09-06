@@ -92,7 +92,7 @@ if [ "$newagent" != "$oldagent" ] ; then
    sed -i "s/$oldagent/$newagent/" /opt/gluu-server/etc/default/oxauth
    sed -i "s/$oldagent/$newagent/" /opt/gluu-server/etc/default/identity
    if [ -f /opt/gluu-server/etc/default/fido ] ; then
-      sed -i "s/$oldagent/$newagent/" /opt/gluu-server/etc/default/fido
+      sed -i "s/$oldagent/$newagent/" /opt/gluu-server/etc/default/fido2
    fi
    if [ -f /opt/gluu-server/etc/default/idp ] ; then
       sed -i "s/$oldagent/$newagent/" /opt/gluu-server/etc/default/idp
