@@ -91,7 +91,7 @@ if [ "$newagent" != "$oldagent" ] ; then
    mv /opt/gluu-server/opt/azure/$oldagent /opt/gluu-server/opt/azure/$oldagent.old
    sed -i "s/$oldagent/$newagent/" /opt/gluu-server/etc/default/oxauth
    sed -i "s/$oldagent/$newagent/" /opt/gluu-server/etc/default/identity
-   if [ -f /opt/gluu-server/etc/default/fido ] ; then
+   if [ -f /opt/gluu-server/etc/default/fido2 ] ; then
       sed -i "s/$oldagent/$newagent/" /opt/gluu-server/etc/default/fido2
    fi
    if [ -f /opt/gluu-server/etc/default/idp ] ; then
@@ -104,4 +104,3 @@ rm -f ${PACKAGE}.tgz ${PACKAGE}.tgz.sha
 rm -rf opt
 
 echo "${PACKAGE} has been installed."
-
