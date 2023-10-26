@@ -206,17 +206,17 @@ fi
 echo "Importing the Gluu GPG Key"
 rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU
 
-if [ ! -f ./gluu-server-4.5.1-*.x86_64.rpm ] ; then
+if [ ! -f ./gluu-server-4.5.2-*.x86_64.rpm ] ; then
    echo "Downloading Gluu Server"
    if grep Red /etc/redhat-release ; then
-      wget --user=tb_of_canada_secretariat --password=$(fetchSecret GluuRepoPW) -nv https://repo.gluu.org/rhel/8/gluu-server-4.5.1-2.rhel8.x86_64.rpm
+      wget --user=tb_of_canada_secretariat --password=$(fetchSecret GluuRepoPW) -nv https://repo.gluu.org/rhel/9/gluu-server-4.5.2-4.rhel9.x86_64.rpm
    else
-      wget --user=tb_of_canada_secretariat --password=$(fetchSecret GluuRepoPW) -nv https://repo.gluu.org/centos/8/gluu-server-4.5.1-2.centos8.x86_64.rpm
+      wget --user=tb_of_canada_secretariat --password=$(fetchSecret GluuRepoPW) -nv https://repo.gluu.org/centos/8/gluu-server-4.5.2-5.centos8.x86_64.rpm
    fi
 fi
 
 echo "Checking integrity of the Gluu RPM..."
-rpm -K ./gluu-server-4.5.1-*.x86_64.rpm
+rpm -K ./gluu-server-4.5.2-*.x86_64.rpm
 if [ $? -eq 0 ] ; then
    echo "Passed."
 else
@@ -229,7 +229,7 @@ dnf remove -y gluu-server > /dev/null 2>&1
 rm -rf /opt/gluu-server*
 
 echo "Reinstalling Gluu..."
-dnf localinstall -y ./gluu-server-4.5.1-*.x86_64.rpm
+dnf localinstall -y ./gluu-server-4.5.2-*.x86_64.rpm
 
 while [ ! -f /opt/gluu-server/install/community-edition-setup/setup.py ] ; do
    echo "Gluu Setup was not extracted. Trying again..."
@@ -243,8 +243,8 @@ done
 echo "Adding Sign In Canada customizations..."
 tar xvzf ${PACKAGE}.tgz -C /opt/gluu-server/
 
-echo "Applying oxTrust SP1 patch"
-curl --user "tb_of_canada_secretariat:$(fetchSecret GluuRepoPW)" https://maven.gluu.org/maven/org/gluu/oxtrust-server/4.5.1.sp1/oxtrust-server-4.5.1.sp1.war > /opt/gluu-server/opt/dist/gluu/identity.war
+# echo "Applying oxTrust SP1 patch"
+# curl --user "tb_of_canada_secretariat:$(fetchSecret GluuRepoPW)" https://maven.gluu.org/maven/org/gluu/oxtrust-server/4.5.1.sp1/oxtrust-server-4.5.1.sp1.war > /opt/gluu-server/opt/dist/gluu/identity.war
 
 echo "Updating container..."
 ssh  -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
@@ -252,7 +252,8 @@ ssh  -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QU
                 -o PubkeyAuthentication=yes root@localhost \
                 "rpm -e rh-amazon-rhui-client; \
                  dnf clean all; \
-                 dnf -y --config=/opt/dist/app/rhui-microsoft-azure-rhel8.config install rhui-azure-rhel8; \
+                 update-crypto-policies --set DEFAULT:SHA1;\
+                 dnf -y --config=/opt/dist/app/rhui-microsoft-azure-rhel9.config install rhui-azure-rhel9; \
                  dnf update -y; \
                  rm -f /var/lib/sss/db/*; \
                  systemctl restart sssd"
@@ -328,4 +329,10 @@ rm -f ${PACKAGE}.tgz ${PACKAGE}.tgz.sha
 
 echo "${PACKAGE} has been installed."
 
-/sbin/shutdown --reboot now
+needs-restarting -r
+if [ $? -eq 0 ] ; then
+   echo "Restarting Gluu..."
+   /sbin/gluu-serverd restart
+else
+   /sbin/shutdown --reboot now
+fi
