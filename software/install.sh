@@ -251,7 +251,9 @@ ssh  -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QU
                 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
                 -o PubkeyAuthentication=yes root@localhost \
                 "rpm -e rh-amazon-rhui-client; \
+                 dnf remove -y epel-release; \
                  dnf clean all; \
+                 rm -f /etc/yum.repos.d/*; \
                  update-crypto-policies --set DEFAULT:SHA1;\
                  dnf -y --config=/opt/dist/app/rhui-microsoft-azure-rhel9.config install rhui-azure-rhel9; \
                  dnf update -y; \
