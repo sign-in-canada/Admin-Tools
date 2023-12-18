@@ -250,7 +250,9 @@ echo "Updating container..."
 ssh  -t -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET \
                 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
                 -o PubkeyAuthentication=yes root@localhost \
-                "rpm -e rh-amazon-rhui-client; \
+                "cp /opt/dist/certs/tbs-ca /etc/pki/ca-trust/source/anchors; \
+                 update-ca-trust; \
+                 rpm -e rh-amazon-rhui-client; \
                  dnf remove -y epel-release; \
                  dnf clean all; \
                  rm -f /etc/yum.repos.d/*; \
